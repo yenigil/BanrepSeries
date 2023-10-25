@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script
+      type="text/javascript"
+      src="https://gue.banrep.gov.co/htmlcommons/SeriesHistoricas/util/messagingUtil.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="https://gue.banrep.gov.co/htmlcommons/SeriesHistoricas/util/jobUtil.js"
+    ></script>
+
+    <style>
+      html,
+      body,
+      #JobResults {
+        position: relative ;
+        background-color: white;
+        font-size: 9pt;
+        font-family: "Arial";
+        padding-top: 0px;
+      }
+      body {
+        background-color: transparent;
+        padding: auto;
+      }
+     
+    </style>
+
+    
+    <script>
+      var obj;
+      ("use strict");
+      window.$ = window.parent.$;
+
+      function onDataReceived(resultData) {
+        console.log(resultData);
+        if (resultData) {
+          var resultName = resultData.resultName;
+          console.log(resultName);
+          if (resultData.columns.length == 0) {
+            // it needs at least one column and one row
+            document.getElementById("JobResults").innerHTML = "";
+            va.messagingUtil.postInstructionalMessage(
+              resultName,
+              "Please, assign roles"
+            );
+            return;
+          }
+          document.getElementById("JobResults").innerHTML = "";
+          console.log("Desde onDataReceived");
+          obj = resultData;
+        }
+        document.getElementById("JobResults").innerHTML = "";
+      }
+
+      function callJob(resultData) {
+        console.log("Ini: Call Job");
+        va.jobUtil.PrepareVADataForSASJobs(resultData);
+        var stringifiedJSON = JSON.stringify(resultData);
+
+        // Your large JSON object as a Blob - Blob is like a file, and the POST method sends the file to the server
+        var jsonBlob = new Blob([stringifiedJSON], { type: "text/plain" });
+
+        // Create form with input parameters
+        var formData = new FormData();
+        formData.append("_program", "/Series Vintage/JobSAS/01.003.Rep_GrupoTCSX");
+        formData.append("_action", "execute,background");
+        formData.append("_output_type", "ods_html5");
+        formData.append("myjsonfile", jsonBlob);
+        //formData.append("_debug", "log");
+        console.log(formData);
+        return $.ajax({
+          method: "POST",
+          url: "/SASJobExecution/",
+          data: formData,
+          contentType: false, // do not send content-type
+          processData: false, // do not transform data to fit to the default content-type application/x-www-form-urlencoded
+          headers: { "X-CSRF-TOKEN": "$CSRF$", Accept: "text/html" },
+        })
+          .done(function (jobOutput) {
+            console.log("Job executed with success!");
+            // Mostrar el resultado del trabajo en el elemento con id "JobResults"
+            document.getElementById("JobResults").innerHTML = jobOutput;
+          })
+          .fail(function (jqXHR, textStatus, errorThrown) {
+            console.log("************** JOB ERROR ***************");
+            console.log("jqXHR: ", jqXHR);
+            console.log("textStatus: ", textStatus);
+            console.log("errorThrown: ", errorThrown);
+            // Mostrar un mensaje de error en el elemento con id "JobResults"
+            document.getElementById("JobResults").innerHTML =
+              "Job finished with ERROR (see console for details)";
+          });
+        console.log("Fin: Call Job");
+      }
+
+      va.messagingUtil.setOnDataReceivedCallback(onDataReceived);
+
+      // Función para ejecutar la función callJob al hacer clic en la imagen
+      function executeCallJob() {
+        // Llamar a la función callJob y mostrar "Creando archivo para descarga..."
+        document.getElementById("JobResults").innerHTML =
+          "Creando archivo...";
+        callJob(obj);
+      }
+    </script>
+  </head>
+  <body>
+    <form>
+      <!-- Cambiar el botón por la imagen -->
+      <a
+        href="javascript:void(0);"
+        onclick="executeCallJob()"
+      >
+        <img
+          src="https://gue.banrep.gov.co/htmlcommons/SeriesHistoricas/img/sh-icon-exportar.png"
+          alt="Exportar"
+        />
+      </a>
+      <br></br>
+      <div id="JobResults"></div>
+    </form>
+  </body>
+</html>
